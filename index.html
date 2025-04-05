@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E-commerce Shop</title>
+    <link rel="stylesheet" href="https://bootswatch.com/5/lux/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .sidebar {
+            height: 100vh;
+            position: sticky;
+            top: 0;
+            background-color: #f8f9fa;
+            padding-top: 20px;
+        }
+        
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+            padding: 20px;
+        }
+        
+        .product-card {
+            border: 1px solid #eee;
+            border-radius: 8px;
+            transition: transform 0.3s, box-shadow 0.3s;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .product-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        
+        .product-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+        }
+        
+        .product-details {
+            padding: 15px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .product-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+        
+        .product-price {
+            font-size: 1.2rem;
+            color: #343a40;
+            margin-bottom: 10px;
+        }
+        
+        .product-category {
+            background-color: #f0f0f0;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            margin-bottom: 10px;
+            align-self: flex-start;
+        }
+        
+        .product-description {
+            font-size: 0.9rem;
+            color: #6c757d;
+            margin-bottom: 15px;
+            flex-grow: 1;
+        }
+        
+        .loading-spinner {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 300px;
+        }
+        
+        .cart-badge {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background-color: #dc3545;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.8rem;
+        }
+        
+        .pointer {
+            cursor: pointer;
+        }
+        
+        @media (max-width: 767.98px) {
+            .sidebar {
+                height: auto;
+                position: static;
+            }
+            
+            .product-grid {
+                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            }
+        }
+        
+        .active-category {
+            font-weight: bold;
+            color: #007bff;
+        }
+        
+        #toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1100;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="#"><i class="fas fa-store me-2"></i>E-Shop</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#"><i class="fas fa-home me-1"></i> Accueil</a>
+                    </li>
+                    <li class="nav-item position-relative">
+                        <a class="nav-link" href="#" onclick="showCart()">
+                            <i class="fas fa-shopping-cart me-1"></i> Panier
+                            <span class="cart-badge" id="cart-badge">0</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#"><i class="fas fa-user me-1"></i> Profil</a>
+                    </li>
+                </ul>
+                <form class="d-flex ms-3">
+                    <input id="search-input" class="form-control me-2" type="search" placeholder="Rechercher..." aria-label="Search">
+                    <button class="btn btn-outline-light" type="button" onclick="searchProducts()">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 col-lg-2 d-md-block sidebar collapse">
+                <div class="container py-2">
+                    <h5><i class="fas fa-filter me-2"></i>Filtres</h5>
+                    <hr>
+                    <h6>Catégories</h6>
+                    <ul class="nav flex-column" id="categories-list">
+                        <li class="nav-item pointer">
+                            <a class="nav-link active-category" onclick="filterByCategory('all')">Tous les produits</a>
+                        </li>
+                        <!-- Categories will be loaded here -->
+                        <li class="nav-item">
+                            <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <span class="ms-2">Chargement...</span>
+                        </li>
+                    </ul>
+                    <hr>
+                    <h6>Prix</h6>
+                    <div class="mb-3">
+                        <label for="price-range" class="form-label">Max: <span id="price-value">1000</span> €</label>
+                        <input type="range" class="form-range" min="0" max="1000" step="10" value="1000" id="price-range">
+                    </div>
+                    <button class="btn btn-sm btn-primary" onclick="applyPriceFilter()">Appliquer</button>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-9 col-lg-10 ms-sm-auto px-md-4">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">Nos Produits</h1>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <div class="btn-group me-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="sortProducts('price-asc')">
+                                <i class="fas fa-sort-amount-down-alt me-1"></i>Prix croissant
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="sortProducts('price-desc')">
+                                <i class="fas fa-sort-amount-down me-1"></i>Prix décroissant
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Loading Spinner -->
+                <div id="loading-spinner" class="loading-spinner">
+                    <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+
+                <!-- Products Grid -->
+                <div id="products-container" class="product-grid" style="display: none;">
+                    <!-- Products will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cart Modal -->
+    <div class="modal fade" id="cartModal" tabindex="-1" aria-labelledby="cartModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="cartModalLabel"><i class="fas fa-shopping-cart me-2"></i>Votre Panier</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="cart-empty" class="text-center py-5">
+                        <i class="fas fa-shopping-cart fa-4x mb-3 text-muted"></i>
+                        <p class="lead">Votre panier est vide</p>
+                        <button class="btn btn-primary" data-bs-dismiss="modal">Continuer mes achats</button>
+                    </div>
+                    <div id="cart-items" style="display: none;">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Produit</th>
+                                    <th>Prix</th>
+                                    <th>Quantité</th>
+                                    <th>Total</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="cart-items-table">
+                                <!-- Cart items will go here -->
+                            </tbody>
+                        </table>
+                        <div class="d-flex justify-content-end">
+                            <h4>Total: <span id="cart-total">0.00</span> €</h4>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                    <button type="button" class="btn btn-danger" onclick="clearCart()">Vider le panier</button>
+                    <button type="button" class="btn btn-primary" id="checkout-btn">Passer la commande</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Global variables
+        let allProducts = [];
+        let filteredProducts = [];
+        let categories = [];
+        let cart = [];
+        let maxPrice = 1000;
+        let currentCategory = 'all';
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            // Load products from API
+            fetchProducts();
+            
+            // Initialize price range slider
+            const priceRange = document.getElementById('price-range');
+            const priceValue = document.getElementById('price-value');
+            
+            priceRange.addEventListener('input', () => {
+                priceValue.textContent = priceRange.value;
+            });
+            
+            // Load cart from localStorage if available
+            loadCart();
+            
+            // Add event listeners
+            document.getElementById('checkout-btn').addEventListener('click', checkout);
+        });
+        
+        function fetchProducts() {
+    const url = 'https://api.daaif.net/products?limit=200&delay=3000';
+    const loadingSpinner = document.getElementById('loading-spinner');
+    
+    // Afficher un message de chargement plus explicite
+    loadingSpinner.innerHTML = `
+        <div>
+            <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3">Chargement des produits...</p>
+        </div>
+    `;
+    
+    // Utiliser un AbortController pour gérer le timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 secondes de timeout
+    
+    fetch(url, { signal: controller.signal })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Erreur réseau: ${response.status} ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            clearTimeout(timeoutId);
+            
+            if (!data || !Array.isArray(data) || data.length === 0) {
+                throw new Error('Aucun produit reçu de l\'API');
+            }
+            
+            allProducts = data;
+            filteredProducts = [...allProducts];
+            
+            // Trouver le prix maximum pour le filtre
+            maxPrice = Math.max(...allProducts.map(product => parseFloat(product.price)));
+            const priceRange = document.getElementById('price-range');
+            priceRange.max = maxPrice;
+            priceRange.value = maxPrice;
+            document.getElementById('price-value').textContent = maxPrice.toFixed(0);
+            
+            // Extraire les catégories uniques
+            categories = [...new Set(allProducts.map(product => product.category))];
+            
+            // Remplir les catégories dans la sidebar
+            populateCategories();
+            
+            // Afficher les produits
+            displayProducts(filteredProducts);
+            
+            // Afficher un toast de confirmation
+            showToast(`${allProducts.length} produits chargés avec succès`, 'success');
+        })
+        .catch(error => {
+            clearTimeout(timeoutId);
+            console.error('Problème avec l\'opération fetch:', error);
+            
+            // Afficher un message d'erreur plus utile
+            loadingSpinner.innerHTML = `
+                <div class="alert alert-danger" role="alert">
+                    <h4 class="alert-heading">Erreur de chargement</h4>
+                    <p>${error.name === 'AbortError' ? 
+                        'La requête a pris trop de temps à répondre. L\'API pourrait être indisponible.' : 
+                        error.message}</p>
+                    <hr>
+                    <p class="mb-0">Solutions possibles:</p>
+                    <ul>
+                        <li>Vérifiez votre connexion internet</li>
+                        <li>Essayez de recharger la page</li>
+                        <li>L'API pourrait être temporairement indisponible</li>
+                    </ul>
+                    <button class="btn btn-primary mt-3" onclick="fetchProducts()">Réessayer</button>
+                </div>
+            `;
+        });
+}
+        
+        function populateCategories() {
+            const categoriesList = document.getElementById('categories-list');
+            categoriesList.innerHTML = `
+                <li class="nav-item pointer">
+                    <a class="nav-link active-category" onclick="filterByCategory('all')">Tous les produits</a>
+                </li>
+            `;
+            
+            categories.forEach(category => {
+                const li = document.createElement('li');
+                li.className = 'nav-item pointer';
+                li.innerHTML = `<a class="nav-link" onclick="filterByCategory('${category}')">${category}</a>`;
+                categoriesList.appendChild(li);
+            });
+        }
+        
+        function displayProducts(products) {
+            const productsContainer = document.getElementById('products-container');
+            const loadingSpinner = document.getElementById('loading-spinner');
+            
+            // Hide loading spinner and show products container
+            loadingSpinner.style.display = 'none';
+            productsContainer.style.display = 'grid';
+            
+            if (products.length === 0) {
+                productsContainer.innerHTML = `
+                    <div class="col-12 text-center py-5">
+                        <i class="fas fa-search fa-4x mb-3 text-muted"></i>
+                        <p class="lead">Aucun produit trouvé</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Clear existing products
+            productsContainer.innerHTML = '';
+            
+            // Add products to grid
+            products.forEach(product => {
+                const cardDiv = document.createElement('div');
+                cardDiv.className = 'product-card';
+                
+                // Create a placeholder image URL if image is missing or invalid
+                const imageUrl = product.image && product.image.trim() !== '' ? 
+                    product.image : 
+                    `/api/placeholder/250/200?text=${encodeURIComponent(product.title)}`;
+                
+                cardDiv.innerHTML = `
+                    <img src="${imageUrl}" alt="${product.title}" class="product-image" onerror="this.src='/api/placeholder/250/200?text=Image+Error'">
+                    <div class="product-details">
+                        <div class="product-category">${product.category}</div>
+                        <div class="product-title">${product.title}</div>
+                        <div class="product-description">${product.description.substring(0, 100)}${product.description.length > 100 ? '...' : ''}</div>
+                        <div class="d-flex justify-content-between align-items-center mt-auto">
+                            <div class="product-price">${parseFloat(product.price).toFixed(2)} €</div>
+                            <button class="btn btn-primary btn-sm" onclick="addToCart(${product.id})">
+                                <i class="fas fa-cart-plus"></i> Ajouter
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                productsContainer.appendChild(cardDiv);
+            });
+        }
+        
+        function filterByCategory(category) {
+            currentCategory = category;
+            
+            // Update active category in sidebar
+            const categoryLinks = document.querySelectorAll('#categories-list .nav-link');
+            categoryLinks.forEach(link => {
+                link.classList.remove('active-category');
+                if (link.textContent === category || (link.textContent === 'Tous les produits' && category === 'all')) {
+                    link.classList.add('active-category');
+                }
+            });
+            
+            // Filter products
+            if (category === 'all') {
+                filteredProducts = [...allProducts];
+            } else {
+                filteredProducts = allProducts.filter(product => product.category === category);
+            }
+            
+            // Apply price filter
+            const priceRange = document.getElementById('price-range');
+            filteredProducts = filteredProducts.filter(product => parseFloat(product.price) <= parseFloat(priceRange.value));
+            
+            // Display filtered products
+            displayProducts(filteredProducts);
+        }
+        
+        function applyPriceFilter() {
+            const priceRange = document.getElementById('price-range');
+            const maxPrice = parseFloat(priceRange.value);
+            
+            // Filter by price and maintain category filter
+            if (currentCategory === 'all') {
+                filteredProducts = allProducts.filter(product => parseFloat(product.price) <= maxPrice);
+            } else {
+                filteredProducts = allProducts.filter(product => 
+                    product.category === currentCategory && parseFloat(product.price) <= maxPrice
+                );
+            }
+            
+            // Display filtered products
+            displayProducts(filteredProducts);
+            
+            // Show toast notification
+            showToast(`Filtrage des produits jusqu'à ${maxPrice.toFixed(2)} €`, 'info');
+        }
+        
+        function searchProducts() {
+            const searchInput = document.getElementById('search-input');
+            const searchTerm = searchInput.value.trim().toLowerCase();
+            
+            if (searchTerm === '') {
+                filterByCategory(currentCategory); // Reset to current category filter
+                return;
+            }
+            
+            // Filter products by search term while maintaining category filter
+            if (currentCategory === 'all') {
+                filteredProducts = allProducts.filter(product => 
+                    product.title.toLowerCase().includes(searchTerm) || 
+                    product.description.toLowerCase().includes(searchTerm)
+                );
+            } else {
+                filteredProducts = allProducts.filter(product => 
+                    product.category === currentCategory && 
+                    (product.title.toLowerCase().includes(searchTerm) || 
+                     product.description.toLowerCase().includes(searchTerm))
+                );
+            }
+            
+            // Display filtered products
+            displayProducts(filteredProducts);
+            
+            // Show toast notification
+            showToast(`Recherche: "${searchTerm}"`, 'info');
+        }
+        
+        function sortProducts(sortType) {
+            switch (sortType) {
+                case 'price-asc':
+                    filteredProducts.sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
+                    showToast('Produits triés par prix croissant', 'info');
+                    break;
+                case 'price-desc':
+                    filteredProducts.sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
+                    showToast('Produits triés par prix décroissant', 'info');
+                    break;
+                default:
+                    break;
+            }
+            
+            // Display sorted products
+            displayProducts(filteredProducts);
+        }
+        
+        // Cart Functions
+        function addToCart(productId) {
+            const product = allProducts.find(p => p.id === productId);
+            if (!product) return;
+            
+            // Check if product is already in cart
+            const existingItemIndex = cart.findIndex(item => item.id === productId);
+            
+            if (existingItemIndex !== -1) {
+                cart[existingItemIndex].quantity += 1;
+            } else {
+                cart.push({
+                    id: product.id,
+                    title: product.title,
+                    price: parseFloat(product.price),
+                    quantity: 1,
+                    image: product.image
+                });
+            }
+            
+            // Save cart to localStorage
+            saveCart();
+            
+            // Update cart badge
+            updateCartBadge();
+            
+            // Show toast notification
+            showToast(`${product.title} ajouté au panier`, 'success');
+        }
+        
+        function updateCartQuantity(productId, newQuantity) {
+            const itemIndex = cart.findIndex(item => item.id === productId);
+            
+            if (itemIndex !== -1) {
+                if (newQuantity <= 0) {
+                    removeFromCart(productId);
+                } else {
+                    cart[itemIndex].quantity = newQuantity;
+                    saveCart();
+                    updateCartDisplay();
+                }
+            }
+        }
+        
+        function removeFromCart(productId) {
+            cart = cart.filter(item => item.id !== productId);
+            saveCart();
+            updateCartDisplay();
+            
+            // Show toast notification
+            showToast('Produit retiré du panier', 'info');
+        }
+        
+        function clearCart() {
+            cart = [];
+            saveCart();
+            updateCartDisplay();
+            
+            // Show toast notification
+            showToast('Panier vidé', 'info');
+        }
+        
+        function saveCart() {
+            localStorage.setItem('cart', JSON.stringify(cart));
+            updateCartBadge();
+        }
+        
+        function loadCart() {
+            const savedCart = localStorage.getItem('cart');
+            if (savedCart) {
+                cart = JSON.parse(savedCart);
+                updateCartBadge();
+            }
+        }
+        
+        function updateCartBadge() {
+            const cartBadge = document.getElementById('cart-badge');
+            const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+            cartBadge.textContent = totalItems;
+        }
+        
+        function showCart() {
+            updateCartDisplay();
+            const cartModal = new bootstrap.Modal(document.getElementById('cartModal'));
+            cartModal.show();
+        }
+        
+        function updateCartDisplay() {
+            const cartEmpty = document.getElementById('cart-empty');
+            const cartItems = document.getElementById('cart-items');
+            const cartItemsTable = document.getElementById('cart-items-table');
+            const cartTotal = document.getElementById('cart-total');
+            
+            if (cart.length === 0) {
+                cartEmpty.style.display = 'block';
+                cartItems.style.display = 'none';
+                return;
+            }
+            
+            cartEmpty.style.display = 'none';
+            cartItems.style.display = 'block';
+            
+            // Clear existing items
+            cartItemsTable.innerHTML = '';
+            
+            // Calculate total
+            let total = 0;
+            
+            // Add items to table
+            cart.forEach(item => {
+                const itemTotal = item.price * item.quantity;
+                total += itemTotal;
+                
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <img src="${item.image || `/api/placeholder/50/50?text=${encodeURIComponent(item.title)}`}" 
+                                alt="${item.title}" style="width: 50px; height: 50px; object-fit: cover; margin-right: 10px;"
+                                onerror="this.src='/api/placeholder/50/50?text=Image+Error'">
+                            <span>${item.title}</span>
+                        </div>
+                    </td>
+                    <td>${item.price.toFixed(2)} €</td>
+                    <td>
+                        <div class="input-group input-group-sm" style="width: 120px;">
+                            <button class="btn btn-outline-secondary" type="button" 
+                                onclick="updateCartQuantity(${item.id}, ${item.quantity - 1})">-</button>
+                            <input type="number" class="form-control text-center" value="${item.quantity}" min="1"
+                                onchange="updateCartQuantity(${item.id}, parseInt(this.value) || 1)">
+                            <button class="btn btn-outline-secondary" type="button" 
+                                onclick="updateCartQuantity(${item.id}, ${item.quantity + 1})">+</button>
+                        </div>
+                    </td>
+                    <td>${itemTotal.toFixed(2)} €</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" onclick="removeFromCart(${item.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                
+                cartItemsTable.appendChild(tr);
+            });
+            
+            // Update total
+            cartTotal.textContent = total.toFixed(2);
+        }
+        
+        function checkout() {
+            if (cart.length === 0) return;
+            
+            // Simulate checkout process
+            showToast('Commande passée avec succès!', 'success');
+            
+            // Clear cart after checkout
+            setTimeout(() => {
+                clearCart();
+                
+                // Close modal
+                const cartModal = bootstrap.Modal.getInstance(document.getElementById('cartModal'));
+                cartModal.hide();
+            }, 1500);
+        }
+        
+        // Utility Functions
+        function showToast(message, type = 'info') {
+            const toastContainer = document.getElementById('toast-container');
+            
+            const toast = document.createElement('div');
+            toast.className = `toast align-items-center text-white bg-${type === 'success' ? 'success' : type === 'error' ? 'danger' : 'primary'} border-0`;
+            toast.setAttribute('role', 'alert');
+            toast.setAttribute('aria-live', 'assertive');
+            toast.setAttribute('aria-atomic', 'true');
+            
+            toast.innerHTML = `
+                <div class="d-flex">
+                    <div class="toast-body">
+                        ${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            `;
+            
+            toastContainer.appendChild(toast);
+            
+            const bsToast = new bootstrap.Toast(toast, { autohide: true, delay: 3000 });
+            bsToast.show();
+            
+            toast.addEventListener('hidden.bs.toast', () => {
+                toast.remove();
+            });
+        }
+        // Ajouter cette fonction à votre code
+function useFallbackData() {
+    // Données de secours si l'API ne fonctionne pas
+    const fallbackProducts = [
+        {
+            id: 1,
+            title: "Smartphone XYZ",
+            price: "399.99",
+            description: "Un smartphone puissant avec écran AMOLED et appareil photo 48MP.",
+            category: "Électronique",
+            image: "/api/placeholder/250/200?text=Smartphone"
+        },
+        {
+            id: 2,
+            title: "Chemise en lin",
+            price: "49.99",
+            description: "Chemise légère en lin parfaite pour l'été.",
+            category: "Vêtements",
+            image: "/api/placeholder/250/200?text=Chemise"
+        },
+        {
+            id: 3, 
+            title: "Machine à café",
+            price: "129.99",
+            description: "Machine à café automatique avec moulin intégré.",
+            category: "Électroménager",
+            image: "/api/placeholder/250/200?text=Cafetière"
+        },
+        {
+            id: 4,
+            title: "Livre bestseller",
+            price: "19.99",
+            description: "Le dernier roman à succès de l'auteur renommé.",
+            category: "Livres",
+            image: "/api/placeholder/250/200?text=Livre"
+        }
+    ];
+    
+    // Utiliser les données de secours
+    allProducts = fallbackProducts;
+    filteredProducts = [...allProducts];
+    
+    // Extraire les catégories
+    categories = [...new Set(allProducts.map(product => product.category))];
+    
+    // Trouver le prix maximum
+    maxPrice = Math.max(...allProducts.map(product => parseFloat(product.price)));
+    const priceRange = document.getElementById('price-range');
+    priceRange.max = maxPrice;
+    priceRange.value = maxPrice;
+    document.getElementById('price-value').textContent = maxPrice.toFixed(0);
+    
+    // Remplir les catégories et afficher les produits
+    populateCategories();
+    displayProducts(filteredProducts);
+    
+    // Notifier l'utilisateur
+    showToast("Utilisation des données de démonstration (l'API est indisponible)", "info");
+}
+
+// Modifier votre fonction fetchProducts pour utiliser les données de secours en cas d'erreur
+function fetchProducts() {
+    const url = 'https://api.daaif.net/products?limit=200';
+    
+    fetch(url, { timeout: 10000 })  // Ajouter un timeout de 10 secondes
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Votre code existant pour traiter les données
+            allProducts = data;
+            // ...
+        })
+        .catch(error => {
+            console.error('There was a problem with the fetch operation:', error);
+            
+            // Utiliser les données de secours en cas d'erreur
+            useFallbackData();
+            
+            // Afficher un message d'erreur plus discret
+            document.getElementById('loading-spinner').style.display = 'none';
+        });
+}
+    </script>
+</body>
+</html>
