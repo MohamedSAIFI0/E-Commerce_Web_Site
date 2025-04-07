@@ -65,7 +65,7 @@
 
 .product-description {
     font-size: 0.9rem;
-    color: #6c757d;
+    color: #3c3f42;
     margin-bottom: 15px;
     flex-grow: 1;
 }
@@ -81,7 +81,7 @@
     position: absolute;
     top: 0;
     right: 0;
-    background-color: #dc3545;
+    background-color: #ec394b;
     color: white;
     border-radius: 50%;
     width: 20px;
